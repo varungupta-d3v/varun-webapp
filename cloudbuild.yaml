@@ -1,0 +1,11 @@
+steps:
+  # Step 1: Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      ['build', '-t', 'gcr.io/$PROJECT_ID/varun-webapp', '.']
+
+  # Step 2: Push Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      ['push', 'gcr.io/$PROJECT_ID/varun-webapp']
+
