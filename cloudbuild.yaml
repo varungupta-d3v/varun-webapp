@@ -1,0 +1,32 @@
+steps:
+# Step 1: Build Docker image using custom Dockerfile name
+- name: 'gcr.io/cloud-builders/docker'
+  args:
+    - 'build'
+    - '-f'
+    - 'varun-docker'
+    - '-t'
+    - 'us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:latest'
+    - '.'
+
+# Step 2: Push image to Artifact Registry
+- name: 'gcr.io/cloud-builders/docker'
+  args:
+    - 'push'
+    - 'us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:latest'
+
+# Step 3: SSH into VM and replace running container
+- name: 'gcr.io/cloud-builders/gcloud'
+  args:
+    - 'compute'
+    - 'ssh'
+    - 'varun-app'
+    - '--zone=us-central1-c'
+    - '--project=varun-484410'
+    - '--command'
+    - |
+      docker pull us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:latest &&
+      docker stop varun-docker || true &&
+      docker rm varun-docker || true &&
+      docker run -d --name varun-docker -p 80:80 us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:latest
+
