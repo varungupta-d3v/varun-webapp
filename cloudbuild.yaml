@@ -15,7 +15,7 @@ steps:
     - 'push'
     - 'us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:latest'
 
-# Step 3: SSH into VM and replace running container
+# Step 3: SSH into VM and replace container
 - name: 'gcr.io/cloud-builders/gcloud'
   args:
     - 'compute'
