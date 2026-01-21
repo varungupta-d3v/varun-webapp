@@ -1,21 +1,21 @@
 steps:
-# Step 1: Build Docker image using custom Dockerfile name
+# Step 1: Build Docker image with commit-based tag
 - name: 'gcr.io/cloud-builders/docker'
   args:
     - 'build'
     - '-f'
     - 'varun-docker'
     - '-t'
-    - 'us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:latest'
+    - 'us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:$SHORT_SHA'
     - '.'
 
-# Step 2: Push image to Artifact Registry
+# Step 2: Push versioned image to Artifact Registry
 - name: 'gcr.io/cloud-builders/docker'
   args:
     - 'push'
-    - 'us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:latest'
+    - 'us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:$SHORT_SHA'
 
-# Step 3: SSH into VM and replace container
+# Step 3: Deploy the SAME versioned image to the VM
 - name: 'gcr.io/cloud-builders/gcloud'
   args:
     - 'compute'
@@ -25,8 +25,8 @@ steps:
     - '--project=varun-484410'
     - '--command'
     - |
-      docker pull us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:latest &&
+      docker pull us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:$SHORT_SHA &&
       docker stop varun-docker || true &&
       docker rm varun-docker || true &&
-      docker run -d --name varun-docker -p 80:80 us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:latest
+      docker run -d --name varun-docker -p 80:80 us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:$SHORT_SHA
 
