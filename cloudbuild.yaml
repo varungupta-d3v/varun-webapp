@@ -1,32 +1,61 @@
 steps:
-# Step 1: Build Docker image with commit-based tag
-- name: 'gcr.io/cloud-builders/docker'
-  args:
-    - 'build'
-    - '-f'
-    - 'varun-docker'
-    - '-t'
-    - 'us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:$SHORT_SHA'
-    - '.'
+  # Step 1: Build Docker image with commit-based tag
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-f'
+      - 'varun-docker'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:$SHORT_SHA'
+      - '.'
 
-# Step 2: Push versioned image to Artifact Registry
-- name: 'gcr.io/cloud-builders/docker'
-  args:
-    - 'push'
-    - 'us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:$SHORT_SHA'
+  # Step 2: Push commit-based image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:$SHORT_SHA'
 
-# Step 3: Deploy the SAME versioned image to the VM
-- name: 'gcr.io/cloud-builders/gcloud'
-  args:
-    - 'compute'
-    - 'ssh'
-    - 'varun-app'
-    - '--zone=us-central1-c'
-    - '--project=varun-484410'
-    - '--command'
-    - |
-      docker pull us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:$SHORT_SHA &&
-      docker stop varun-docker || true &&
-      docker rm varun-docker || true &&
-      docker run -d --name varun-docker -p 80:80 us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:$SHORT_SHA
+  # Step 3: Tag the SAME image as prod
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'tag'
+      - 'us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:$SHORT_SHA'
+      - 'us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:prod'
 
+  # Step 4: Push prod tag
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:prod'
+
+  # Step 5: Deploy to VM via SSH (fail-fast, validated)
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'compute'
+      - 'ssh'
+      - 'varun-app'
+      - '--zone=us-central1-c'
+      - '--project=varun-484410'
+      - '--command'
+      - |
+        set -e
+        echo "Pulling prod image..."
+        docker pull us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:prod
+
+        echo "Stopping existing container..."
+        docker stop varun-docker || true
+        docker rm varun-docker || true
+
+        echo "Starting new container..."
+        docker run -d \
+          --name varun-docker \
+          -p 80:80 \
+          us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:prod
+
+        echo "Verifying container is running..."
+        sleep 3
+        docker ps | grep varun-docker
+
+images:
+  - 'us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:$SHORT_SHA'
+  - 'us-central1-docker.pkg.dev/varun-484410/varun-webapp/varun-docker:prod'
